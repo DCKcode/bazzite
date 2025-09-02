@@ -33,11 +33,11 @@ ARG IMAGE_FLAVOR="${IMAGE_FLAVOR:-main}"
 ARG NVIDIA_FLAVOR="${NVIDIA_FLAVOR:-nvidia}"
 ARG NVIDIA_BASE="${NVIDIA_BASE:-bazzite}"
 ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-bazzite}"
-ARG KERNEL_VERSION="${KERNEL_VERSION:-6.12.5-204.bazzite.fc41.x86_64}"
+ARG KERNEL_VERSION="${KERNEL_VERSION:-6.16.4-102.bazzite.fc42.x86_64}"
 ARG IMAGE_BRANCH="${IMAGE_BRANCH:-main}"
 ARG SOURCE_IMAGE="${SOURCE_IMAGE:-$BASE_IMAGE_NAME-$BASE_IMAGE_FLAVOR}"
 ARG BASE_IMAGE="ghcr.io/ublue-os/${SOURCE_IMAGE}"
-ARG FEDORA_VERSION="${FEDORA_VERSION:-41}"
+ARG FEDORA_VERSION="${FEDORA_VERSION:-42}"
 ARG JUPITER_FIRMWARE_VERSION="${JUPITER_FIRMWARE_VERSION:-jupiter-20241205.1}"
 ARG SHA_HEAD_SHORT="${SHA_HEAD_SHORT}"
 ARG VERSION_TAG="${VERSION_TAG}"
@@ -61,10 +61,10 @@ ARG IMAGE_FLAVOR="${IMAGE_FLAVOR:-main}"
 ARG NVIDIA_FLAVOR="${NVIDIA_FLAVOR:-nvidia}"
 ARG NVIDIA_BASE="${NVIDIA_BASE:-bazzite}"
 ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-bazzite}"
-ARG KERNEL_VERSION="${KERNEL_VERSION:-6.12.5-204.bazzite.fc41.x86_64}"
+ARG KERNEL_VERSION="${KERNEL_VERSION:-6.16.4-102.bazzite.fc42.x86_64}"
 ARG IMAGE_BRANCH="${IMAGE_BRANCH:-main}"
 ARG BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-kinoite}"
-ARG FEDORA_VERSION="${FEDORA_VERSION:-41}"
+ARG FEDORA_VERSION="${FEDORA_VERSION:-42}"
 ARG JUPITER_FIRMWARE_VERSION="${JUPITER_FIRMWARE_VERSION:-jupiter-20241205.1}"
 ARG SHA_HEAD_SHORT="${SHA_HEAD_SHORT}"
 ARG VERSION_TAG="${VERSION_TAG}"
@@ -109,13 +109,13 @@ RUN --mount=type=cache,dst=/var/cache \
     dnf5 -y config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-rar.repo && \
     dnf5 -y config-manager setopt "*bazzite*".priority=1 && \
     dnf5 -y config-manager setopt "*akmods*".priority=2 && \
-    dnf5 -y config-manager setopt "*terra*".priority=3 "*terra*".exclude="nerd-fonts topgrade" && \
+    dnf5 -y config-manager setopt "*terra*".priority=3 "*terra*".exclude="nerd-fonts topgrade scx-scheds" && \
     dnf5 -y config-manager setopt "terra-mesa".enabled=true && \
     dnf5 -y config-manager setopt "terra-nvidia".enabled=false && \
     eval "$(/ctx/dnf5-setopt setopt '*negativo17*' priority=4 exclude='mesa-* *xone*')" && \
     dnf5 -y config-manager setopt "*rpmfusion*".priority=5 "*rpmfusion*".exclude="mesa-*" && \
     dnf5 -y config-manager setopt "*fedora*".exclude="mesa-* kernel-core-* kernel-modules-* kernel-uki-virt-*" && \
-    dnf5 -y config-manager setopt "*staging*".exclude="scx-scheds kf6-* mesa* mutter* rpm-ostree* systemd* gnome-shell gnome-settings-daemon gnome-control-center gnome-software libadwaita tuned*" && \
+    dnf5 -y config-manager setopt "*staging*".exclude="scx-scheds kf6-* mesa* mutter*" && \
     /ctx/cleanup
 
 # Install kernel
@@ -132,7 +132,26 @@ RUN --mount=type=cache,dst=/var/cache \
     dnf5 -y install \
         scx-scheds && \
     dnf5 -y copr disable bieszczaders/kernel-cachyos-addons && \
-    dnf5 -y swap --repo copr:copr.fedorainfracloud.org:bazzite-org:bazzite bootc bootc && \
+    declare -A toswap=( \
+        ["copr:copr.fedorainfracloud.org:bazzite-org:bazzite"]="ostree bootc rpm-ostree rpm-ostree-libs plymouth tuned tuned-ppd" \
+    ) && \
+    for repo in "${!toswap[@]}"; do \
+        for package in ${toswap[$repo]}; do dnf5 -y swap --repo=$repo $package $package; done; \
+    done && unset -v toswap repo package && \
+    dnf5 versionlock add \
+        ostree \
+        ostree-libs \
+        bootc \
+        rpm-ostree \
+        rpm-ostree-libs \
+        plymouth \
+        plymouth-scripts \
+        plymouth-core-libs \
+        plymouth-graphics-libs \
+        plymouth-plugin-label \
+        plymouth-plugin-two-step \
+        plymouth-plugin-theme-spinner \
+        plymouth-system-theme && \
     /ctx/cleanup
 
 # Setup firmware
@@ -229,6 +248,7 @@ RUN --mount=type=cache,dst=/var/cache \
         ublue-os-update-services \
         firefox \
         firefox-langpacks \
+        toolbox \
         htop && \
     /ctx/cleanup
 
@@ -242,7 +262,6 @@ RUN --mount=type=cache,dst=/var/cache \
         $(/ctx/ghcurl https://api.github.com/repos/bazzite-org/cicpoffs/releases/latest | jq -r '.assets[] | select(.name| test(".*rpm$")).browser_download_url') && \
     dnf5 -y install \
         bazaar \
-        libdex-0.9.1 \
         iwd \
         twitter-twemoji-fonts \
         google-noto-sans-cjk-fonts \
@@ -317,8 +336,11 @@ RUN --mount=type=cache,dst=/var/cache \
         waydroid \
         cage \
         wlr-randr && \
+    systemctl mask iscsi && \
     mkdir -p /usr/lib/extest/ && \
     /ctx/ghcurl "$(/ctx/ghcurl https://api.github.com/repos/bazzite-org/extest/releases/latest | jq -r '.assets[] | select(.name| test(".*so$")).browser_download_url')" --retry 3 -Lo /usr/lib/extest/libextest.so && \
+    /ctx/ghcurl "$(/ctx/ghcurl https://api.github.com/repos/FrameworkComputer/framework-system/releases/latest | jq -r '.assets[] | select(.name == "framework_tool").browser_download_url')" --retry 3 -Lo /usr/bin/framework_tool && \
+    chmod +x /usr/bin/framework_tool && \
     /ctx/ghcurl "$(/ctx/ghcurl https://api.github.com/repos/HikariKnight/ls-iommu/releases/latest | jq -r '.assets[] | select(.name| test(".*x86_64.tar.gz$")).browser_download_url')" --retry 3 -Lo /tmp/ls-iommu.tar.gz && \
     mkdir -p /tmp/ls-iommu && \
     sed -i 's|uupd|& --disable-module-distrobox|' /usr/lib/systemd/system/uupd.service && \
@@ -429,6 +451,7 @@ RUN --mount=type=cache,dst=/var/cache \
             fcitx5-hangul \
             kcm-fcitx5 \
             gnome-disk-utility \
+            kio-extras \
             krunner-bazaar \
             ptyxis && \
         dnf5 -y remove \
@@ -650,7 +673,6 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/ghcurl "https://raw.githubusercontent.com/doitsujin/dxvk/master/dxvk.conf" --retry 3 -Lo /etc/dxvk-example.conf && \
     /ctx/ghcurl "https://raw.githubusercontent.com/bazzite-org/waydroid-scripts/main/waydroid-choose-gpu.sh" --retry 3 -Lo /usr/bin/waydroid-choose-gpu && \
     chmod +x /usr/bin/waydroid-choose-gpu && \
-    /ctx/ghcurl "https://github.com/CachyOS/CachyOS-Settings/raw/master/usr/lib/sysctl.d/99-bore-scheduler.conf" --retry 3 -Lo /usr/lib/sysctl.d/99-bore-scheduler.conf && \
     /ctx/ghcurl "https://github.com/ublue-os/toolboxes/raw/refs/heads/main/apps/docker/distrobox.ini" --retry 3 -Lo /etc/distrobox/docker.ini && \
     /ctx/ghcurl "https://github.com/ublue-os/toolboxes/raw/refs/heads/main/apps/incus/distrobox.ini" --retry 3 -Lo /etc/distrobox/incus.ini && \
     /ctx/image-info && \
@@ -672,10 +694,10 @@ ARG IMAGE_FLAVOR="${IMAGE_FLAVOR:-main}"
 ARG NVIDIA_FLAVOR="${NVIDIA_FLAVOR:-nvidia}"
 ARG NVIDIA_BASE="${NVIDIA_BASE:-bazzite}"
 ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-bazzite}"
-ARG KERNEL_VERSION="${KERNEL_VERSION:-6.12.5-204.bazzite.fc41.x86_64}"
+ARG KERNEL_VERSION="${KERNEL_VERSION:-6.16.4-102.bazzite.fc42.x86_64}"
 ARG IMAGE_BRANCH="${IMAGE_BRANCH:-main}"
 ARG BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-kinoite}"
-ARG FEDORA_VERSION="${FEDORA_VERSION:-41}"
+ARG FEDORA_VERSION="${FEDORA_VERSION:-42}"
 ARG VERSION_TAG="${VERSION_TAG}"
 ARG VERSION_PRETTY="${VERSION_PRETTY}"
 
@@ -760,7 +782,7 @@ RUN --mount=type=cache,dst=/var/cache \
     ln -s /usr/bin/steamos-logger /usr/bin/steamos-warning && \
     /ctx/cleanup
 
-# Install Steam Deck patched UPower, remove Tuned GUI
+# Install Steam Deck patched UPower
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
@@ -881,10 +903,10 @@ ARG IMAGE_FLAVOR="${IMAGE_FLAVOR:-nvidia}"
 ARG NVIDIA_FLAVOR="${NVIDIA_FLAVOR:-nvidia}"
 ARG NVIDIA_BASE="${NVIDIA_BASE:-bazzite}"
 ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-bazzite}"
-ARG KERNEL_VERSION="${KERNEL_VERSION:-6.12.5-204.bazzite.fc41.x86_64}"
+ARG KERNEL_VERSION="${KERNEL_VERSION:-6.16.4-102.bazzite.fc42.x86_64}"
 ARG IMAGE_BRANCH="${IMAGE_BRANCH:-main}"
 ARG BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-kinoite}"
-ARG FEDORA_VERSION="${FEDORA_VERSION:-41}"
+ARG FEDORA_VERSION="${FEDORA_VERSION:-42}"
 ARG VERSION_TAG="${VERSION_TAG}"
 ARG VERSION_PRETTY="${VERSION_PRETTY}"
 
@@ -916,10 +938,17 @@ RUN --mount=type=cache,dst=/var/cache \
     dnf5 -y install \
         mesa-vdpau-drivers.x86_64 \
         mesa-vdpau-drivers.i686 && \
+    dnf5 -y install \
+        egl-wayland2.x86_64 \
+        egl-wayland2.i686 && \
     /ctx/ghcurl "https://raw.githubusercontent.com/ublue-os/main/refs/heads/main/build_files/nvidia-install.sh" --retry 3 -Lo /tmp/nvidia-install.sh && \
     chmod +x /tmp/nvidia-install.sh && \
     IMAGE_NAME="${BASE_IMAGE_NAME}" /tmp/nvidia-install.sh && \
     rm -f /usr/share/vulkan/icd.d/nouveau_icd.*.json && \
+    : "DELETEME: Quick workaround for typo in /usr/share/vulkan/icd.d/nvidia_icd.*.json" && \
+    : "          See: https://forums.developer.nvidia.com/t/580-release-feedback-discussion/341205/174" && \
+    sed -i 's/1.4.312/1.4.321/' /usr/share/vulkan/icd.d/nvidia_icd.i686.json /usr/share/vulkan/icd.d/nvidia_icd.x86_64.json && \
+    : && \
     ln -s libnvidia-ml.so.1 /usr/lib64/libnvidia-ml.so && \
     dnf5 config-manager setopt "terra-mesa".enabled=0 && \
     dnf5 -y copr disable ublue-os/staging && \
@@ -930,8 +959,6 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    mv /usr/bin/bazaar /usr/bin/bazaar-hotfix && \
-    mv /usr/bin/bazaar-nvidia /usr/bin/bazaar && \
     echo "import \"/usr/share/ublue-os/just/95-bazzite-nvidia.just\"" >> /usr/share/ublue-os/justfile && \
     if grep -q "silverblue" <<< "${BASE_IMAGE_NAME}"; then \
       mkdir -p "/usr/share/ublue-os/dconfs/nvidia-silverblue/" && \

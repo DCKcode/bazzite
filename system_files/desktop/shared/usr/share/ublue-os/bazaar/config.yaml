@@ -91,8 +91,10 @@ sections:
       - com.pokemmo.PokeMMO
       - com.etlegacy.ETLegacy
       - com.realm667.Wolfenstein_Blade_of_Agony
+      - net.stabyourself.nottetris2
       - org.srb2.SRB2
       - org.srb2.SRB2Kart
+      - org.kartkrew.RingRacers
       - org.supertuxproject.SuperTux
       - net.supertuxkart.SuperTuxKart
   - title: "Streaming & Chat"
@@ -164,6 +166,7 @@ sections:
       - org.inkscape.Inkscape
       - org.blender.Blender
       - io.github.nokse22.Exhibit
+      - io.github.jliljebl.Flowblade
       - de.leopoldluley.Clapgrep
       - org.audacityteam.Audacity
       - org.ardour.Ardour
@@ -183,6 +186,7 @@ sections:
       - bazzite-section
       - utilities-section
     appids:
+      - io.github.ilya_zlobintsev.LACT
       - io.github.limo_app.limo
       - io.github.radiolamp.mangojuice
       - io.github.rfrench3.scopebuddy-gui

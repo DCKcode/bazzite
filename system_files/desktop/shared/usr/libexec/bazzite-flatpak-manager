@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 # SCRIPT VERSION
-VER=28
+VER=29
 VER_FILE="/etc/bazzite/flatpak_manager_version"
 VER_RAN=$(cat $VER_FILE)
 IMAGE_INFO="/usr/share/ublue-os/image-info.json"
@@ -117,9 +117,6 @@ fi
 mkdir -p /var/lib/flatpak/extension/org.mozilla.firefox.systemconfig/x86_64/stable/defaults/pref
 rm -f /var/lib/flatpak/extension/org.mozilla.firefox.systemconfig/x86_64/stable/defaults/pref/*bazzite*.js
 /usr/bin/cp -rf /usr/share/ublue-os/firefox-config/* /var/lib/flatpak/extension/org.mozilla.firefox.systemconfig/x86_64/stable/defaults/pref/
-
-# Update Flatpaks
-flatpak --system update -y
 
 mkdir -p /etc/bazzite
 echo $VER > $VER_FILE

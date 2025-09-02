@@ -24,31 +24,61 @@ _install_appimage_file $APPIMAGE_SRC $filename="":
     sleep 3
     LC_ALL=C flatpak run it.mijorus.gearlever "$appimage_file" <&-
 
-# Install LACT to control your AMD, Nvidia or Intel GPU on a Linux system.
-install-lact:
-    #!/usr/bin/bash
-    rpm-ostree kargs --append-if-missing=$(printf 'amdgpu.ppfeaturemask=0x%x\n' "$(($(cat /sys/module/amdgpu/parameters/ppfeaturemask) | 0x4000))")
-    flatpak --system install -y flathub io.github.ilya_zlobintsev.LACT
-    echo 'Complete, please reboot to apply changes.'
-
 # Install CoolerControl, a GUI for viewing all your system's sensors and for creating custom fan and pump profiles based on any available temperature sensor28
 install-coolercontrol:
     #!/usr/bin/bash
+    set -eo pipefail
+
+    cat <<'EOF'
+    {{ YELLOW }}This recipe will proceed to {{ BOLD }}layer{{ NORMAL }} {{ YELLOW }}CoolerControl{{ NORMAL }}.
+    {{ YELLOW }}If updates start to fail, please use "{{ BOLD }}rpm-ostree reset{{ NORMAL }}"
+    {{ YELLOW }}See https://docs.bazzite.gg/Installing_and_Managing_Software/rpm-ostree/#major-caveats-using-rpm-ostree{{ NORMAL }}
+    EOF
+
     echo 'Enabling Terra Repository.'
     sudo sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/terra.repo
     echo 'Installing Cooler Control'
     rpm-ostree install -y liquidctl coolercontrol
     echo 'Complete, please reboot to apply changes.'
 
+# Install JetBrains Toolbox | https://www.jetbrains.com/toolbox-app/
+install-jetbrains-toolbox:
+    #!/usr/bin/env bash
+    pushd "$(mktemp -d)"
+    echo "Get latest JetBrains Toolbox version"
+    # Get the json with latest releases
+    curl -sSfL -o releases.json "https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release"
+    # Extract information
+    BUILD_VERSION=$(jq -r '.TBA[0].build' ./releases.json)
+    DOWNLOAD_LINK=$(jq -r '.TBA[0].downloads.linux.link' ./releases.json)
+    CHECKSUM_LINK=$(jq -r '.TBA[0].downloads.linux.checksumLink' ./releases.json)
+    echo "Installing JetBrains Toolbox ${BUILD_VERSION}"
+    curl -sSfL -O "${DOWNLOAD_LINK}"
+    curl -sSfL "${CHECKSUM_LINK}" | sha256sum -c
+    tar zxf jetbrains-toolbox-"${BUILD_VERSION}".tar.gz
+    mkdir -p $HOME/.local/share/JetBrains/ToolboxApp/
+    mv jetbrains-toolbox-"${BUILD_VERSION}"/* $HOME/.local/share/JetBrains/ToolboxApp/
+    echo "Launching JetBrains Toolbox"
+    $HOME/.local/share/JetBrains/ToolboxApp/bin/jetbrains-toolbox &
+
 alias get-steamcmd := install-steamcmd
 
 # Install SteamCMD (https://developer.valvesoftware.com/wiki/SteamCMD)
 install-steamcmd:
+    #!/usr/bin/bash
+    if [[ $UID -eq 0 ]]; then
+        echo >&2 "This ujust should not be run as root."
+        exit 1
+    fi
     echo 'Installing SteamCMD...'
     wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz -O /tmp/steamcmd.tar.gz
     mkdir -p ~/.steam
     tar -xvzf /tmp/steamcmd.tar.gz -C ~/.steam
     rm /tmp/steamcmd.tar.gz
+    if [[ -f ~/.steam/steamcmd.sh ]]; then
+        mkdir -p ~/.local/bin
+        ln -s ~/.steam/steamcmd.sh ~/.local/bin/steamcmd
+    fi
 
 # Install OpenRazer for Razer gaming hardware
 install-openrazer:
